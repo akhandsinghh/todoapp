@@ -18,6 +18,31 @@ export default function Dashboard() {
   const loadTasks = () =>
     taskApi.listTasks({ status, group_id: activeGroup || undefined }).then(setTasks);
 
+  const taskMatchesFilters = (task) => {
+    if (status && task.status !== status) return false;
+    if (activeGroup && task.group_id !== activeGroup) return false;
+    return true;
+  };
+
+  const addLocalTask = (task) => {
+    setTasks((prevTasks) => {
+      if (!taskMatchesFilters(task)) return prevTasks;
+      return [task, ...prevTasks];
+    });
+  };
+
+  const updateLocalTask = (updatedTask) => {
+    setTasks((prevTasks) => {
+      const filteredTasks = prevTasks.filter((task) => task.id !== updatedTask.id);
+      if (!taskMatchesFilters(updatedTask)) return filteredTasks;
+      return [updatedTask, ...filteredTasks];
+    });
+  };
+
+  const deleteLocalTask = (id) => {
+    setTasks((prevTasks) => prevTasks.filter((task) => task.id !== id));
+  };
+
   useEffect(() => {
     loadGroups().catch(handleError);
   }, []);
@@ -89,7 +114,10 @@ export default function Dashboard() {
           <TaskForm
             groups={groups}
             onCreate={(payload) =>
-              taskApi.createTask(payload).then(loadTasks).catch(handleError)
+              taskApi
+                .createTask(payload)
+                .then(addLocalTask)
+                .catch(handleError)
             }
           />
           <TaskList
@@ -101,18 +129,18 @@ export default function Dashboard() {
                   ...task,
                   status: task.status === 'completed' ? 'pending' : 'completed',
                 })
-                .then(loadTasks)
+                .then(updateLocalTask)
                 .catch(handleError)
             }
-
             onUpdate={(updatedTask) =>
               taskApi
                 .updateTask(updatedTask.id, updatedTask)
-                .then(loadTasks)
+                .then(updateLocalTask)
                 .catch(handleError)
             }
-            
-            onDelete={(id) => taskApi.deleteTask(id).then(loadTasks).catch(handleError)}
+            onDelete={(id) =>
+              taskApi.deleteTask(id).then(() => deleteLocalTask(id)).catch(handleError)
+            }
             onReminder={(payload) =>
               taskApi
                 .createReminder(payload)
