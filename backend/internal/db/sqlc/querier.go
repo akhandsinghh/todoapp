@@ -10,17 +10,21 @@ import (
 
 type Querier interface {
 	CreateGroup(ctx context.Context, arg CreateGroupParams) (int64, error)
+	CreateGroupShare(ctx context.Context, arg CreateGroupShareParams) error
 	CreateReminder(ctx context.Context, arg CreateReminderParams) (int64, error)
 	CreateTask(ctx context.Context, arg CreateTaskParams) (int64, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (int64, error)
+	CountTasksByUser(ctx context.Context, arg CountTasksByUserParams) (int64, error)
 	DeleteGroup(ctx context.Context, arg DeleteGroupParams) error
 	DeleteReminder(ctx context.Context, arg DeleteReminderParams) error
 	DeleteTask(ctx context.Context, arg DeleteTaskParams) error
+	GetAccessibleGroupByID(ctx context.Context, arg GetAccessibleGroupByIDParams) (AccessibleGroup, error)
 	GetGroupByID(ctx context.Context, arg GetGroupByIDParams) (TaskGroup, error)
 	GetTaskByID(ctx context.Context, arg GetTaskByIDParams) (Task, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	GetUserByID(ctx context.Context, id int64) (User, error)
 	ListDueReminders(ctx context.Context, arg ListDueRemindersParams) ([]Reminder, error)
+	ListAccessibleGroups(ctx context.Context, userID int64) ([]AccessibleGroup, error)
 	ListGroupsByUser(ctx context.Context, userID int64) ([]TaskGroup, error)
 	ListRemindersByUser(ctx context.Context, userID int64) ([]Reminder, error)
 	ListTasksByUser(ctx context.Context, arg ListTasksByUserParams) ([]Task, error)

@@ -7,6 +7,7 @@ package sqlc
 
 import (
 	"context"
+	"time"
 )
 
 const createGroup = `-- name: CreateGroup :execlastid
@@ -17,6 +18,20 @@ type CreateGroupParams struct {
 	UserID int64  `json:"user_id"`
 	Name   string `json:"name"`
 	Color  string `json:"color"`
+}
+
+const createGroupShare = `-- name: CreateGroupShare :exec
+INSERT IGNORE INTO group_shares (group_id, user_id) VALUES (?, ?)
+`
+
+type CreateGroupShareParams struct {
+	GroupID int64 `json:"group_id"`
+	UserID  int64 `json:"user_id"`
+}
+
+func (q *Queries) CreateGroupShare(ctx context.Context, arg CreateGroupShareParams) error {
+	_, err := q.db.ExecContext(ctx, createGroupShare, arg.GroupID, arg.UserID)
+	return err
 }
 
 func (q *Queries) CreateGroup(ctx context.Context, arg CreateGroupParams) (int64, error) {
@@ -48,6 +63,45 @@ SELECT id, user_id, name, color, created_at, updated_at FROM task_groups WHERE i
 type GetGroupByIDParams struct {
 	ID     int64 `json:"id"`
 	UserID int64 `json:"user_id"`
+}
+
+const getAccessibleGroupByID = `-- name: GetAccessibleGroupByID :one
+SELECT g.id, g.user_id, g.name, g.color, g.created_at, g.updated_at,
+  CASE WHEN g.user_id = ? THEN 'creator' ELSE 'shared' END AS role
+FROM task_groups g
+LEFT JOIN group_shares gs ON gs.group_id = g.id AND gs.user_id = ?
+WHERE g.id = ? AND (g.user_id = ? OR gs.user_id IS NOT NULL)
+LIMIT 1
+`
+
+type GetAccessibleGroupByIDParams struct {
+	UserID int64 `json:"user_id"`
+	ID     int64 `json:"id"`
+}
+
+type AccessibleGroup struct {
+	ID        int64     `json:"id"`
+	UserID    int64     `json:"user_id"`
+	Name      string    `json:"name"`
+	Color     string    `json:"color"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+	Role      string    `json:"role"`
+}
+
+func (q *Queries) GetAccessibleGroupByID(ctx context.Context, arg GetAccessibleGroupByIDParams) (AccessibleGroup, error) {
+	row := q.db.QueryRowContext(ctx, getAccessibleGroupByID, arg.UserID, arg.UserID, arg.ID, arg.UserID)
+	var i AccessibleGroup
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Name,
+		&i.Color,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.Role,
+	)
+	return i, err
 }
 
 func (q *Queries) GetGroupByID(ctx context.Context, arg GetGroupByIDParams) (TaskGroup, error) {
@@ -84,6 +138,46 @@ func (q *Queries) ListGroupsByUser(ctx context.Context, userID int64) ([]TaskGro
 			&i.Color,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listAccessibleGroups = `-- name: ListAccessibleGroups :many
+SELECT g.id, g.user_id, g.name, g.color, g.created_at, g.updated_at,
+  CASE WHEN g.user_id = ? THEN 'creator' ELSE 'shared' END AS role
+FROM task_groups g
+LEFT JOIN group_shares gs ON gs.group_id = g.id AND gs.user_id = ?
+WHERE g.user_id = ? OR gs.user_id IS NOT NULL
+ORDER BY g.name ASC
+`
+
+func (q *Queries) ListAccessibleGroups(ctx context.Context, userID int64) ([]AccessibleGroup, error) {
+	rows, err := q.db.QueryContext(ctx, listAccessibleGroups, userID, userID, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []AccessibleGroup
+	for rows.Next() {
+		var i AccessibleGroup
+		if err := rows.Scan(
+			&i.ID,
+			&i.UserID,
+			&i.Name,
+			&i.Color,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.Role,
 		); err != nil {
 			return nil, err
 		}

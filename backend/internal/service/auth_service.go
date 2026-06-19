@@ -67,3 +67,42 @@ func (s *AuthService) Me(ctx context.Context, userID int64) (model.UserResponse,
 	}
 	return model.UserResponse{ID: u.ID, Name: u.Name, Email: u.Email}, nil
 }
+
+func (s *AuthService) ChangePassword(ctx context.Context, userID int64, req model.ChangePasswordRequest) error {
+	if !util.Required(req.OldPassword, req.NewPassword, req.ConfirmPassword) {
+		return errors.New("old password, new password and confirm password are required")
+	}
+	if req.NewPassword != req.ConfirmPassword {
+		return errors.New("new passwords do not match")
+	}
+	u, err := s.users.ByID(ctx, userID)
+	if err != nil {
+		return errors.New("user not found")
+	}
+	if !util.CheckPassword(req.OldPassword, u.PasswordHash) {
+		return errors.New("old password is incorrect")
+	}
+	hash, err := util.HashPassword(req.NewPassword)
+	if err != nil {
+		return err
+	}
+	return s.users.UpdatePassword(ctx, userID, hash)
+}
+
+func (s *AuthService) ForgotPassword(ctx context.Context, req model.ForgotPasswordRequest) error {
+	if !util.Required(req.Email, req.NewPassword, req.ConfirmPassword) {
+		return errors.New("email, new password and confirm password are required")
+	}
+	if req.NewPassword != req.ConfirmPassword {
+		return errors.New("passwords do not match")
+	}
+	u, err := s.users.ByEmail(ctx, req.Email)
+	if err != nil {
+		return errors.New("user not found")
+	}
+	hash, err := util.HashPassword(req.NewPassword)
+	if err != nil {
+		return err
+	}
+	return s.users.UpdatePassword(ctx, u.ID, hash)
+}

@@ -117,12 +117,12 @@ export default function TaskCard({ task, group, groups = [], onToggle, onDelete,
         </div>
       </div>
       <form className="reminder-row" onSubmit={submitReminder}>
-        <input
+        {/* <input
           type="datetime-local"
           value={remindAt}
           onChange={(e) => setRemindAt(e.target.value)}
         />
-        <button type="submit">Remind</button>
+        <button type="submit">Remind</button> */}
         <button type="button" style={{ background: '#d97706', color: 'white' }} onClick={() => setIsEditing(true)}>
           Edit
         </button>

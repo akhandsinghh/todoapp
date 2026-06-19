@@ -13,6 +13,9 @@ type GroupRequest struct {
 	Name  string `json:"name"`
 	Color string `json:"color"`
 }
+type ShareGroupRequest struct {
+	Email string `json:"email"`
+}
 type TaskRequest struct {
 	GroupID     *int64 `json:"group_id"`
 	Title       string `json:"title"`

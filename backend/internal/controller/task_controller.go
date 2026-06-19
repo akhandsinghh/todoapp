@@ -19,7 +19,18 @@ func NewTaskController(s *service.TaskService) *TaskController {
 func (c *TaskController) List(ctx *gin.Context) {
 	limit, offset := util.Pagination(ctx)
 	gid, _ := strconv.ParseInt(ctx.Query("group_id"), 10, 64)
-	res, err := c.service.List(ctx.Request.Context(), middleware.UserID(ctx), ctx.Query("status"), gid, limit, offset)
+	ungrouped := ctx.Query("ungrouped") == "true" || ctx.Query("ungrouped") == "1"
+	res, err := c.service.List(
+		ctx.Request.Context(),
+		middleware.UserID(ctx),
+		ctx.Query("status"),
+		gid,
+		ungrouped,
+		limit,
+		offset,
+		ctx.Query("sort_by"),
+		ctx.Query("sort_order"),
+	)
 	if err != nil {
 		util.Error(ctx, 500, err.Error())
 		return

@@ -52,6 +52,22 @@ func (c *GroupController) Update(ctx *gin.Context) {
 	}
 	util.JSON(ctx, 200, model.MessageResponse{Message: "group updated"})
 }
+func (c *GroupController) Share(ctx *gin.Context) {
+	id, ok := pathID(ctx)
+	if !ok {
+		return
+	}
+	var req model.ShareGroupRequest
+	if err := util.Decode(ctx, &req); err != nil {
+		util.Error(ctx, 400, "invalid json")
+		return
+	}
+	if err := c.service.Share(ctx.Request.Context(), middleware.UserID(ctx), id, req); err != nil {
+		util.Error(ctx, 400, err.Error())
+		return
+	}
+	util.JSON(ctx, 200, model.MessageResponse{Message: "group shared"})
+}
 func (c *GroupController) Delete(ctx *gin.Context) {
 	id, ok := pathID(ctx)
 	if !ok {

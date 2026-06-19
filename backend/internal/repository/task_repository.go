@@ -16,6 +16,12 @@ func (r *TaskRepository) Create(ctx context.Context, p sqlc.CreateTaskParams) (i
 func (r *TaskRepository) List(ctx context.Context, p sqlc.ListTasksByUserParams) ([]sqlc.Task, error) {
 	return r.q.ListTasksByUser(ctx, p)
 }
+func (r *TaskRepository) Count(ctx context.Context, p sqlc.CountTasksByUserParams) (int64, error) {
+	return r.q.CountTasksByUser(ctx, p)
+}
+func (r *TaskRepository) GetAccessibleGroup(ctx context.Context, p sqlc.GetAccessibleGroupByIDParams) (sqlc.AccessibleGroup, error) {
+	return r.q.GetAccessibleGroupByID(ctx, p)
+}
 func (r *TaskRepository) Get(ctx context.Context, p sqlc.GetTaskByIDParams) (sqlc.Task, error) {
 	return r.q.GetTaskByID(ctx, p)
 }

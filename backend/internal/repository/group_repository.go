@@ -15,11 +15,20 @@ func NewGroupRepository(q *sqlc.Queries) *GroupRepository {
 func (r *GroupRepository) Create(ctx context.Context, p sqlc.CreateGroupParams) (int64, error) {
 	return r.q.CreateGroup(ctx, p)
 }
-func (r *GroupRepository) List(ctx context.Context, userID int64) ([]sqlc.TaskGroup, error) {
-	return r.q.ListGroupsByUser(ctx, userID)
+func (r *GroupRepository) Share(ctx context.Context, p sqlc.CreateGroupShareParams) error {
+	return r.q.CreateGroupShare(ctx, p)
+}
+func (r *GroupRepository) List(ctx context.Context, userID int64) ([]sqlc.AccessibleGroup, error) {
+	return r.q.ListAccessibleGroups(ctx, userID)
 }
 func (r *GroupRepository) Get(ctx context.Context, p sqlc.GetGroupByIDParams) (sqlc.TaskGroup, error) {
 	return r.q.GetGroupByID(ctx, p)
+}
+func (r *GroupRepository) GetAccessible(ctx context.Context, p sqlc.GetAccessibleGroupByIDParams) (sqlc.AccessibleGroup, error) {
+	return r.q.GetAccessibleGroupByID(ctx, p)
+}
+func (r *GroupRepository) UserByEmail(ctx context.Context, email string) (sqlc.User, error) {
+	return r.q.GetUserByEmail(ctx, email)
 }
 func (r *GroupRepository) Update(ctx context.Context, p sqlc.UpdateGroupParams) error {
 	return r.q.UpdateGroup(ctx, p)

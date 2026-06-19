@@ -46,3 +46,29 @@ func (c *AuthController) Me(ctx *gin.Context) {
 	}
 	util.JSON(ctx, 200, res)
 }
+
+func (c *AuthController) ChangePassword(ctx *gin.Context) {
+	var req model.ChangePasswordRequest
+	if err := util.Decode(ctx, &req); err != nil {
+		util.Error(ctx, 400, "invalid json")
+		return
+	}
+	if err := c.service.ChangePassword(ctx.Request.Context(), middleware.UserID(ctx), req); err != nil {
+		util.Error(ctx, 400, err.Error())
+		return
+	}
+	util.JSON(ctx, 200, model.MessageResponse{Message: "password updated"})
+}
+
+func (c *AuthController) ForgotPassword(ctx *gin.Context) {
+	var req model.ForgotPasswordRequest
+	if err := util.Decode(ctx, &req); err != nil {
+		util.Error(ctx, 400, "invalid json")
+		return
+	}
+	if err := c.service.ForgotPassword(ctx.Request.Context(), req); err != nil {
+		util.Error(ctx, 400, err.Error())
+		return
+	}
+	util.JSON(ctx, 200, model.MessageResponse{Message: "password reset"})
+}

@@ -13,22 +13,40 @@ export default function Dashboard() {
   const [activeGroup, setActiveGroup] = useState(null);
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
+  const [page, setPage] = useState(1);
+  const [totalTasks, setTotalTasks] = useState(0);
+  const [query, setQuery] = useState({ pageSize: 10, sortBy: 'due_at', sortOrder: 'asc' });
+  const [controls, setControls] = useState(query);
 
   const loadGroups = () => groupApi.listGroups().then(setGroups);
   const loadTasks = () =>
-    taskApi.listTasks({ status, group_id: activeGroup || undefined }).then(setTasks);
+    taskApi
+      .listTasks({
+        status,
+        group_id: typeof activeGroup === 'number' ? activeGroup : undefined,
+        ungrouped: activeGroup === 'ungrouped' ? true : undefined,
+        page,
+        limit: query.pageSize,
+        sort_by: query.sortBy,
+        sort_order: query.sortOrder,
+      })
+      .then((data) => {
+        const items = Array.isArray(data) ? data : data.items || [];
+        setTasks(items);
+        setTotalTasks(Array.isArray(data) ? items.length : data.total || 0);
+      });
 
   const taskMatchesFilters = (task) => {
     if (status && task.status !== status) return false;
-    if (activeGroup && task.group_id !== activeGroup) return false;
+    if (activeGroup === 'ungrouped' && task.group_id) return false;
+    if (typeof activeGroup === 'number' && task.group_id !== activeGroup) return false;
     return true;
   };
 
   const addLocalTask = (task) => {
-    setTasks((prevTasks) => {
-      if (!taskMatchesFilters(task)) return prevTasks;
-      return [task, ...prevTasks];
-    });
+    if (!taskMatchesFilters(task)) return;
+    setTotalTasks((total) => total + 1);
+    setTasks((prevTasks) => [task, ...prevTasks]);
   };
 
   const updateLocalTask = (updatedTask) => {
@@ -41,6 +59,7 @@ export default function Dashboard() {
 
   const deleteLocalTask = (id) => {
     setTasks((prevTasks) => prevTasks.filter((task) => task.id !== id));
+    setTotalTasks((total) => Math.max(0, total - 1));
   };
 
   useEffect(() => {
@@ -49,7 +68,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     loadTasks().catch(handleError);
-  }, [activeGroup, status]);
+  }, [activeGroup, status, page, query]);
 
   const stats = useMemo(
     () => ({
@@ -58,6 +77,15 @@ export default function Dashboard() {
     }),
     [tasks]
   );
+
+  const totalPages = Math.max(1, Math.ceil(totalTasks / query.pageSize));
+  const canGoPrevious = page > 1;
+  const canGoNext = page < totalPages;
+
+  const applyControls = () => {
+    setPage(1);
+    setQuery({ ...controls, pageSize: Number(controls.pageSize) });
+  };
 
   function handleError(err) {
     setError(err.response?.data?.error || err.message || 'Something went wrong');
@@ -70,9 +98,15 @@ export default function Dashboard() {
         <GroupSidebar
           groups={groups}
           activeGroup={activeGroup}
-          onSelect={setActiveGroup}
+          onSelect={(value) => {
+            setActiveGroup(value);
+            setPage(1);
+          }}
           onCreate={(payload) =>
             groupApi.createGroup(payload).then(loadGroups).catch(handleError)
+          }
+          onShare={(id, payload) =>
+            groupApi.shareGroup(id, payload).then(loadGroups).catch(handleError)
           }
         />
         <main className="workspace">
@@ -86,7 +120,13 @@ export default function Dashboard() {
             
             {/* HERE IS THE CHANGE PASSWORD BUTTON WRAPPED WITH THE DROPDOWN */}
             <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
-              <select value={status} onChange={(e) => setStatus(e.target.value)}>
+              <select
+                value={status}
+                onChange={(e) => {
+                  setStatus(e.target.value);
+                  setPage(1);
+                }}
+              >
                 <option value="">All</option>
                 <option value="pending">Pending</option>
                 <option value="completed">Completed</option>
@@ -109,6 +149,52 @@ export default function Dashboard() {
               </Link>
             </div>
             
+          </section>
+          <section className="pagination-toolbar">
+            <label>
+              Page size
+              <select
+                value={controls.pageSize}
+                onChange={(e) => setControls({ ...controls, pageSize: Number(e.target.value) })}
+              >
+                <option value={5}>5</option>
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+                <option value={50}>50</option>
+              </select>
+            </label>
+            <label>
+              Sort by
+              <select
+                value={controls.sortBy}
+                onChange={(e) => setControls({ ...controls, sortBy: e.target.value })}
+              >
+                <option value="due_at">Deadline date</option>
+                <option value="priority">Priority</option>
+              </select>
+            </label>
+            <label>
+              Order
+              <select
+                value={controls.sortOrder}
+                onChange={(e) => setControls({ ...controls, sortOrder: e.target.value })}
+              >
+                <option value="asc">Ascending</option>
+                <option value="desc">Descending</option>
+              </select>
+            </label>
+            <button type="button" onClick={applyControls}>Load</button>
+            <div className="page-controls">
+              <button type="button" disabled={!canGoPrevious} onClick={() => setPage((p) => p - 1)}>
+                Prev
+              </button>
+              <span>
+                Page {page} of {totalPages} ({totalTasks} tasks)
+              </span>
+              <button type="button" disabled={!canGoNext} onClick={() => setPage((p) => p + 1)}>
+                Next
+              </button>
+            </div>
           </section>
           {error && <div className="alert">{error}</div>}
           <TaskForm
@@ -141,12 +227,12 @@ export default function Dashboard() {
             onDelete={(id) =>
               taskApi.deleteTask(id).then(() => deleteLocalTask(id)).catch(handleError)
             }
-            onReminder={(payload) =>
-              taskApi
-                .createReminder(payload)
-                .then(() => setError('Reminder saved'))
-                .catch(handleError)
-            }
+            // onReminder={(payload) =>
+            //   taskApi
+            //     .createReminder(payload)
+            //     .then(() => setError('Reminder saved'))
+            //     .catch(handleError)
+            // }
           />
         </main>
       </div>

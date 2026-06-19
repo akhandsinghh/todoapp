@@ -39,7 +39,17 @@ func (q *Queries) CreateTask(ctx context.Context, arg CreateTaskParams) (int64, 
 }
 
 const deleteTask = `-- name: DeleteTask :exec
-DELETE FROM tasks WHERE id = ? AND user_id = ?
+DELETE FROM tasks
+WHERE id = ?
+  AND (
+    user_id = ?
+    OR (group_id IS NOT NULL AND EXISTS (
+      SELECT 1
+      FROM task_groups g
+      LEFT JOIN group_shares gs ON gs.group_id = g.id AND gs.user_id = ?
+      WHERE g.id = tasks.group_id AND (g.user_id = ? OR gs.user_id IS NOT NULL)
+    ))
+  )
 `
 
 type DeleteTaskParams struct {
@@ -48,13 +58,24 @@ type DeleteTaskParams struct {
 }
 
 func (q *Queries) DeleteTask(ctx context.Context, arg DeleteTaskParams) error {
-	_, err := q.db.ExecContext(ctx, deleteTask, arg.ID, arg.UserID)
+	_, err := q.db.ExecContext(ctx, deleteTask, arg.ID, arg.UserID, arg.UserID, arg.UserID)
 	return err
 }
 
 const getTaskByID = `-- name: GetTaskByID :one
 SELECT id, user_id, group_id, title, description, status, priority, due_at, completed_at, created_at, updated_at
-FROM tasks WHERE id = ? AND user_id = ? LIMIT 1
+FROM tasks
+WHERE id = ?
+  AND (
+    user_id = ?
+    OR (group_id IS NOT NULL AND EXISTS (
+      SELECT 1
+      FROM task_groups g
+      LEFT JOIN group_shares gs ON gs.group_id = g.id AND gs.user_id = ?
+      WHERE g.id = tasks.group_id AND (g.user_id = ? OR gs.user_id IS NOT NULL)
+    ))
+  )
+LIMIT 1
 `
 
 type GetTaskByIDParams struct {
@@ -63,7 +84,7 @@ type GetTaskByIDParams struct {
 }
 
 func (q *Queries) GetTaskByID(ctx context.Context, arg GetTaskByIDParams) (Task, error) {
-	row := q.db.QueryRowContext(ctx, getTaskByID, arg.ID, arg.UserID)
+	row := q.db.QueryRowContext(ctx, getTaskByID, arg.ID, arg.UserID, arg.UserID, arg.UserID)
 	var i Task
 	err := row.Scan(
 		&i.ID,
@@ -84,30 +105,66 @@ func (q *Queries) GetTaskByID(ctx context.Context, arg GetTaskByIDParams) (Task,
 const listTasksByUser = `-- name: ListTasksByUser :many
 SELECT id, user_id, group_id, title, description, status, priority, due_at, completed_at, created_at, updated_at
 FROM tasks
-WHERE user_id = ?
+WHERE (
+    user_id = ?
+    OR (group_id IS NOT NULL AND EXISTS (
+      SELECT 1
+      FROM task_groups g
+      LEFT JOIN group_shares gs ON gs.group_id = g.id AND gs.user_id = ?
+      WHERE g.id = tasks.group_id AND (g.user_id = ? OR gs.user_id IS NOT NULL)
+    ))
+  )
   AND (? = '' OR status = ?)
-  AND (? = 0 OR group_id = ?)
-ORDER BY COALESCE(due_at, created_at) ASC, created_at DESC
+  AND ((? = 1 AND group_id IS NULL) OR (? = 0 AND (? = 0 OR group_id = ?)))
+ORDER BY
+  CASE WHEN ? = 'priority' AND ? = 'asc' THEN FIELD(priority, 'low', 'medium', 'high') END ASC,
+  CASE WHEN ? = 'priority' AND ? = 'desc' THEN FIELD(priority, 'high', 'medium', 'low') END ASC,
+  CASE WHEN ? = 'due_at' AND ? = 'asc' THEN COALESCE(due_at, '9999-12-31') END ASC,
+  CASE WHEN ? = 'due_at' AND ? = 'desc' THEN COALESCE(due_at, '1000-01-01') END DESC,
+  COALESCE(due_at, created_at) ASC,
+  created_at DESC
 LIMIT ? OFFSET ?
 `
 
 type ListTasksByUserParams struct {
-	UserID  int64         `json:"user_id"`
-	Column2 interface{}   `json:"column_2"`
-	Status  TasksStatus   `json:"status"`
-	Column4 interface{}   `json:"column_4"`
-	GroupID sql.NullInt64 `json:"group_id"`
-	Limit   int32         `json:"limit"`
-	Offset  int32         `json:"offset"`
+	UserID     int64         `json:"user_id"`
+	Column3    interface{}   `json:"column_3"`
+	Status     TasksStatus   `json:"status"`
+	Ungrouped1 int32         `json:"ungrouped_1"`
+	Ungrouped2 int32         `json:"ungrouped_2"`
+	Column7    interface{}   `json:"column_7"`
+	GroupID    sql.NullInt64 `json:"group_id"`
+	SortBy1    string        `json:"sort_by_1"`
+	Order1     string        `json:"order_1"`
+	SortBy2    string        `json:"sort_by_2"`
+	Order2     string        `json:"order_2"`
+	SortBy3    string        `json:"sort_by_3"`
+	Order3     string        `json:"order_3"`
+	SortBy4    string        `json:"sort_by_4"`
+	Order4     string        `json:"order_4"`
+	Limit      int32         `json:"limit"`
+	Offset     int32         `json:"offset"`
 }
 
 func (q *Queries) ListTasksByUser(ctx context.Context, arg ListTasksByUserParams) ([]Task, error) {
 	rows, err := q.db.QueryContext(ctx, listTasksByUser,
 		arg.UserID,
-		arg.Column2,
+		arg.UserID,
+		arg.UserID,
+		arg.Column3,
 		arg.Status,
-		arg.Column4,
+		arg.Ungrouped1,
+		arg.Ungrouped2,
+		arg.Column7,
 		arg.GroupID,
+		arg.SortBy1,
+		arg.Order1,
+		arg.SortBy2,
+		arg.Order2,
+		arg.SortBy3,
+		arg.Order3,
+		arg.SortBy4,
+		arg.Order4,
 		arg.Limit,
 		arg.Offset,
 	)
@@ -144,8 +201,61 @@ func (q *Queries) ListTasksByUser(ctx context.Context, arg ListTasksByUserParams
 	return items, nil
 }
 
+const countTasksByUser = `-- name: CountTasksByUser :one
+SELECT COUNT(*)
+FROM tasks
+WHERE (
+    user_id = ?
+    OR (group_id IS NOT NULL AND EXISTS (
+      SELECT 1
+      FROM task_groups g
+      LEFT JOIN group_shares gs ON gs.group_id = g.id AND gs.user_id = ?
+      WHERE g.id = tasks.group_id AND (g.user_id = ? OR gs.user_id IS NOT NULL)
+    ))
+  )
+  AND (? = '' OR status = ?)
+  AND ((? = 1 AND group_id IS NULL) OR (? = 0 AND (? = 0 OR group_id = ?)))
+`
+
+type CountTasksByUserParams struct {
+	UserID     int64         `json:"user_id"`
+	Column3    interface{}   `json:"column_3"`
+	Status     TasksStatus   `json:"status"`
+	Ungrouped1 int32         `json:"ungrouped_1"`
+	Ungrouped2 int32         `json:"ungrouped_2"`
+	Column7    interface{}   `json:"column_7"`
+	GroupID    sql.NullInt64 `json:"group_id"`
+}
+
+func (q *Queries) CountTasksByUser(ctx context.Context, arg CountTasksByUserParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countTasksByUser,
+		arg.UserID,
+		arg.UserID,
+		arg.UserID,
+		arg.Column3,
+		arg.Status,
+		arg.Ungrouped1,
+		arg.Ungrouped2,
+		arg.Column7,
+		arg.GroupID,
+	)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const updateTask = `-- name: UpdateTask :exec
-UPDATE tasks SET group_id = ?, title = ?, description = ?, status = ?, priority = ?, due_at = ?, completed_at = ? WHERE id = ? AND user_id = ?
+UPDATE tasks SET group_id = ?, title = ?, description = ?, status = ?, priority = ?, due_at = ?, completed_at = ?
+WHERE id = ?
+  AND (
+    user_id = ?
+    OR (group_id IS NOT NULL AND EXISTS (
+      SELECT 1
+      FROM task_groups g
+      LEFT JOIN group_shares gs ON gs.group_id = g.id AND gs.user_id = ?
+      WHERE g.id = tasks.group_id AND (g.user_id = ? OR gs.user_id IS NOT NULL)
+    ))
+  )
 `
 
 type UpdateTaskParams struct {
@@ -170,6 +280,8 @@ func (q *Queries) UpdateTask(ctx context.Context, arg UpdateTaskParams) error {
 		arg.DueAt,
 		arg.CompletedAt,
 		arg.ID,
+		arg.UserID,
+		arg.UserID,
 		arg.UserID,
 	)
 	return err

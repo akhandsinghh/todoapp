@@ -7,3 +7,7 @@ type AuthResponse struct {
 type MessageResponse struct {
 	Message string `json:"message"`
 }
+type TaskListResponse struct {
+	Items []TaskDTO `json:"items"`
+	Total int64     `json:"total"`
+}

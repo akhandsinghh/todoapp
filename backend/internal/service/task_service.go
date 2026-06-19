@@ -68,6 +68,16 @@ func nullGroup(v *int64) sql.NullInt64 {
 	return sql.NullInt64{Int64: *v, Valid: true}
 }
 
+func (s *TaskService) ensureGroupAccess(ctx context.Context, userID int64, groupID *int64) error {
+	if groupID == nil || *groupID == 0 {
+		return nil
+	}
+	if _, err := s.repo.GetAccessibleGroup(ctx, sqlc.GetAccessibleGroupByIDParams{ID: *groupID, UserID: userID}); err != nil {
+		return errors.New("group is not accessible")
+	}
+	return nil
+}
+
 func (s *TaskService) Create(ctx context.Context, userID int64, req model.TaskRequest) (model.TaskDTO, error) {
 	if !util.Required(req.Title) {
 		return model.TaskDTO{}, errors.New("title is required")
@@ -77,6 +87,9 @@ func (s *TaskService) Create(ctx context.Context, userID int64, req model.TaskRe
 	}
 	if !util.ValidPriority(req.Priority) {
 		return model.TaskDTO{}, errors.New("invalid priority")
+	}
+	if err := s.ensureGroupAccess(ctx, userID, req.GroupID); err != nil {
+		return model.TaskDTO{}, err
 	}
 	due, err := parseTime(req.DueAt)
 	if err != nil {
@@ -100,32 +113,74 @@ func (s *TaskService) Create(ctx context.Context, userID int64, req model.TaskRe
 	return taskDTO(t), nil
 }
 
-func (s *TaskService) List(ctx context.Context, userID int64, status string, groupID int64, limit, offset int32) ([]model.TaskDTO, error) {
+func normalizeSort(sortBy, sortOrder string) (string, string) {
+	if sortBy != "priority" && sortBy != "due_at" {
+		sortBy = ""
+	}
+	if sortOrder != "desc" {
+		sortOrder = "asc"
+	}
+	return sortBy, sortOrder
+}
+
+func (s *TaskService) List(ctx context.Context, userID int64, status string, groupID int64, ungrouped bool, limit, offset int32, sortBy, sortOrder string) (model.TaskListResponse, error) {
+	sortBy, sortOrder = normalizeSort(sortBy, sortOrder)
+	var ungroupedFlag int32
+	if ungrouped {
+		ungroupedFlag = 1
+		groupID = 0
+	}
+	countParams := sqlc.CountTasksByUserParams{
+		UserID:     userID,
+		Column3:    status,
+		Status:     sqlc.TasksStatus(status),
+		Ungrouped1: ungroupedFlag,
+		Ungrouped2: ungroupedFlag,
+		Column7:    groupID,
+		GroupID: sql.NullInt64{
+			Int64: groupID,
+			Valid: groupID != 0,
+		},
+	}
+	total, err := s.repo.Count(ctx, countParams)
+	if err != nil {
+		return model.TaskListResponse{}, err
+	}
 	ts, err := s.repo.List(ctx, sqlc.ListTasksByUserParams{
 		UserID: userID,
 
 		// Map the raw strings to the dynamically generated sqlc interface fields
-		Column2: status,
+		Column3: status,
 		Status:  sqlc.TasksStatus(status),
 
-		Column4: groupID,
+		Ungrouped1: ungroupedFlag,
+		Ungrouped2: ungroupedFlag,
+		Column7:    groupID,
 		GroupID: sql.NullInt64{
 			Int64: groupID,
 			Valid: groupID != 0,
 		},
 
-		Limit:  limit,
-		Offset: offset,
+		SortBy1: sortBy,
+		Order1:  sortOrder,
+		SortBy2: sortBy,
+		Order2:  sortOrder,
+		SortBy3: sortBy,
+		Order3:  sortOrder,
+		SortBy4: sortBy,
+		Order4:  sortOrder,
+		Limit:   limit,
+		Offset:  offset,
 	})
 	if err != nil {
-		return nil, err
+		return model.TaskListResponse{}, err
 	}
 
 	out := make([]model.TaskDTO, 0, len(ts))
 	for _, t := range ts {
 		out = append(out, taskDTO(t))
 	}
-	return out, nil
+	return model.TaskListResponse{Items: out, Total: total}, nil
 }
 
 func (s *TaskService) Update(ctx context.Context, userID, id int64, req model.TaskRequest) (model.TaskDTO, error) {
@@ -147,6 +202,9 @@ func (s *TaskService) Update(ctx context.Context, userID, id int64, req model.Ta
 	}
 	if !util.ValidPriority(req.Priority) {
 		return model.TaskDTO{}, errors.New("invalid priority")
+	}
+	if err := s.ensureGroupAccess(ctx, userID, req.GroupID); err != nil {
+		return model.TaskDTO{}, err
 	}
 	due, err := parseTime(req.DueAt)
 	if err != nil {

@@ -2,15 +2,24 @@ import React, { useState } from 'react';
 
 const colors = ['#4f46e5', '#059669', '#dc2626', '#d97706', '#0891b2'];
 
-export default function GroupSidebar({ groups, activeGroup, onSelect, onCreate }) {
+export default function GroupSidebar({ groups, activeGroup, onSelect, onCreate, onShare }) {
   const [name, setName] = useState('');
   const [color, setColor] = useState(colors[0]);
+  const [shareEmailByGroup, setShareEmailByGroup] = useState({});
 
   const submit = (e) => {
     e.preventDefault();
     if (!name.trim()) return;
     onCreate({ name, color });
     setName('');
+  };
+
+  const share = (e, groupId) => {
+    e.preventDefault();
+    const email = (shareEmailByGroup[groupId] || '').trim();
+    if (!email) return;
+    onShare(groupId, { email });
+    setShareEmailByGroup((prev) => ({ ...prev, [groupId]: '' }));
   };
 
   return (
@@ -21,15 +30,38 @@ export default function GroupSidebar({ groups, activeGroup, onSelect, onCreate }
       >
         All tasks
       </button>
+      <button
+        className={activeGroup === 'ungrouped' ? 'group active' : 'group'}
+        onClick={() => onSelect('ungrouped')}
+      >
+        Ungrouped
+      </button>
       {groups.map((g) => (
-        <button
-          key={g.id}
-          className={activeGroup === g.id ? 'group active' : 'group'}
-          onClick={() => onSelect(g.id)}
-        >
-          <i style={{ background: g.color }} />
-          {g.name}
-        </button>
+        <div key={g.id} className="group-item">
+          <button
+            className={activeGroup === g.id ? 'group active' : 'group'}
+            onClick={() => onSelect(g.id)}
+          >
+            <i style={{ background: g.color }} />
+            <span>{g.name}</span>
+            <em>{g.role === 'creator' ? 'creator' : 'shared'}</em>
+          </button>
+          {g.role === 'creator' && (
+            <form className="share-form" onSubmit={(e) => share(e, g.id)}>
+              <input
+                type="email"
+                placeholder="Share by email"
+                value={shareEmailByGroup[g.id] || ''}
+                onChange={(e) =>
+                  setShareEmailByGroup((prev) => ({ ...prev, [g.id]: e.target.value }))
+                }
+              />
+              <button type="submit" disabled={!(shareEmailByGroup[g.id] || '').trim()}>
+                Share
+              </button>
+            </form>
+          )}
+        </div>
       ))}
       <form className="group-form" onSubmit={submit}>
         <input

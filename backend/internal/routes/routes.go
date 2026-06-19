@@ -28,10 +28,12 @@ func New(c Controllers, cfg Config) *gin.Engine {
 	api := router.Group("/api")
 	api.POST("/auth/register", c.Auth.Register)
 	api.POST("/auth/login", c.Auth.Login)
+	api.POST("/auth/forgot-password", c.Auth.ForgotPassword)
 
 	authenticated := api.Group("")
 	authenticated.Use(middleware.Auth(cfg.JWTSecret))
 	authenticated.GET("/auth/me", c.Auth.Me)
+	authenticated.POST("/auth/change-password", c.Auth.ChangePassword)
 
 	authenticated.GET("/tasks", c.Tasks.List)
 	authenticated.POST("/tasks", c.Tasks.Create)
@@ -41,6 +43,7 @@ func New(c Controllers, cfg Config) *gin.Engine {
 
 	authenticated.GET("/groups", c.Groups.List)
 	authenticated.POST("/groups", c.Groups.Create)
+	authenticated.POST("/groups/:id/share", c.Groups.Share)
 	authenticated.PUT("/groups/:id", c.Groups.Update)
 	authenticated.PATCH("/groups/:id", c.Groups.Update)
 	authenticated.DELETE("/groups/:id", c.Groups.Delete)

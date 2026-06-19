@@ -7,7 +7,12 @@
 .group { display: flex; gap: 10px; align-items: center; justify-content: flex-start; width: 100%; background: transparent; color: #374151; font-weight: 700; }
 .group.active { background: #eef2ff; color: #1d4ed8; }
 .group i { width: 12px; height: 12px; border-radius: 50%; }
+.group span { flex: 1; text-align: left; }
+.group em { color: #6b7280; font-size: 11px; font-style: normal; font-weight: 700; text-transform: uppercase; }
+.group-item { display: grid; gap: 6px; }
 .group-form { margin-top: 12px; display: grid; gap: 10px; }
+.share-form { display: grid; grid-template-columns: 1fr 70px; gap: 6px; }
+.share-form input { min-width: 0; }
 .swatches { display: flex; gap: 8px; }
 .swatches button { width: 26px; height: 26px; padding: 0; border: 2px solid transparent; }
 .swatches button.selected { border-color: #111827; }
@@ -16,6 +21,11 @@
 .toolbar h1 { margin: 0; font-size: 28px; }
 .toolbar span { color: #6b7280; }
 .toolbar select { width: 170px; }
+.pagination-toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; padding: 12px; border: 1px solid #e5e7eb; border-radius: 8px; background: #fff; }
+.pagination-toolbar label { display: grid; gap: 4px; color: #4b5563; font-size: 12px; font-weight: 700; }
+.pagination-toolbar select { width: 150px; }
+.page-controls { display: flex; gap: 10px; align-items: center; margin-left: auto; }
+.page-controls span { color: #4b5563; font-size: 14px; font-weight: 700; white-space: nowrap; }
 .task-form { display: grid; grid-template-columns: 1.3fr 1fr 140px 160px 210px 90px; gap: 10px; align-items: center; }
 .task-list { display: grid; gap: 12px; }
 .task-card { border: 1px solid #e5e7eb; border-radius: 8px; background: white; padding: 16px; display: grid; gap: 14px; }
@@ -30,4 +40,4 @@
 .priority.medium { background: #fef3c7; color: #92400e; }
 .priority.low { background: #dcfce7; color: #166534; }
 .reminder-row { display: grid; grid-template-columns: 220px 90px 90px; gap: 10px; justify-content: end; }
-@media (max-width: 920px) { .dashboard { grid-template-columns: 1fr; } .sidebar { border-right: 0; border-bottom: 1px solid #e5e7eb; } .task-form { grid-template-columns: 1fr; } .reminder-row { grid-template-columns: 1fr; justify-content: stretch; } .toolbar { align-items: stretch; flex-direction: column; } .toolbar select { width: 100%; } }
+@media (max-width: 920px) { .dashboard { grid-template-columns: 1fr; } .sidebar { border-right: 0; border-bottom: 1px solid #e5e7eb; } .task-form { grid-template-columns: 1fr; } .reminder-row { grid-template-columns: 1fr; justify-content: stretch; } .toolbar { align-items: stretch; flex-direction: column; } .toolbar select { width: 100%; } .pagination-toolbar { align-items: stretch; flex-direction: column; } .pagination-toolbar select { width: 100%; } .page-controls { margin-left: 0; justify-content: space-between; } }
