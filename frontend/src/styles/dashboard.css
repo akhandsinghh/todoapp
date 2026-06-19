@@ -13,6 +13,9 @@
 .group-form { margin-top: 12px; display: grid; gap: 10px; }
 .share-form { display: grid; grid-template-columns: 1fr 70px; gap: 6px; }
 .share-form input { min-width: 0; }
+.delete-group-btn { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; padding: 6px 12px; border-radius: 4px; font-weight: 600; font-size: 13px; cursor: pointer; transition: all 0.2s ease; }
+.delete-group-btn:hover { background: #fca5a5; border-color: #f87171; }
+.delete-group-btn:active { background: #f87171; }
 .swatches { display: flex; gap: 8px; }
 .swatches button { width: 26px; height: 26px; padding: 0; border: 2px solid transparent; }
 .swatches button.selected { border-color: #111827; }

@@ -1,0 +1,27 @@
+[GIN-debug] [WARNING] Running in "debug" mode. Switch to "release" mode in production.
+ - using env:	export GIN_MODE=release
+ - using code:	gin.SetMode(gin.ReleaseMode)
+
+[GIN-debug] GET    /health                   --> todo-app/backend/internal/routes.New.func1 (4 handlers)
+[GIN-debug] POST   /api/auth/register        --> todo-app/backend/internal/controller.(*AuthController).Register-fm (4 handlers)
+[GIN-debug] POST   /api/auth/login           --> todo-app/backend/internal/controller.(*AuthController).Login-fm (4 handlers)
+[GIN-debug] POST   /api/auth/forgot-password --> todo-app/backend/internal/controller.(*AuthController).ForgotPassword-fm (4 handlers)
+[GIN-debug] GET    /api/auth/me              --> todo-app/backend/internal/controller.(*AuthController).Me-fm (5 handlers)
+[GIN-debug] POST   /api/auth/change-password --> todo-app/backend/internal/controller.(*AuthController).ChangePassword-fm (5 handlers)
+[GIN-debug] GET    /api/tasks                --> todo-app/backend/internal/controller.(*TaskController).List-fm (5 handlers)
+[GIN-debug] POST   /api/tasks                --> todo-app/backend/internal/controller.(*TaskController).Create-fm (5 handlers)
+[GIN-debug] PUT    /api/tasks/:id            --> todo-app/backend/internal/controller.(*TaskController).Update-fm (5 handlers)
+[GIN-debug] PATCH  /api/tasks/:id            --> todo-app/backend/internal/controller.(*TaskController).Update-fm (5 handlers)
+[GIN-debug] DELETE /api/tasks/:id            --> todo-app/backend/internal/controller.(*TaskController).Delete-fm (5 handlers)
+[GIN-debug] GET    /api/groups               --> todo-app/backend/internal/controller.(*GroupController).List-fm (5 handlers)
+[GIN-debug] POST   /api/groups               --> todo-app/backend/internal/controller.(*GroupController).Create-fm (5 handlers)
+[GIN-debug] POST   /api/groups/:id/share     --> todo-app/backend/internal/controller.(*GroupController).Share-fm (5 handlers)
+[GIN-debug] PUT    /api/groups/:id           --> todo-app/backend/internal/controller.(*GroupController).Update-fm (5 handlers)
+[GIN-debug] PATCH  /api/groups/:id           --> todo-app/backend/internal/controller.(*GroupController).Update-fm (5 handlers)
+[GIN-debug] DELETE /api/groups/:id           --> todo-app/backend/internal/controller.(*GroupController).Delete-fm (5 handlers)
+[GIN-debug] GET    /api/reminders            --> todo-app/backend/internal/controller.(*ReminderController).List-fm (5 handlers)
+[GIN-debug] POST   /api/reminders            --> todo-app/backend/internal/controller.(*ReminderController).Create-fm (5 handlers)
+[GIN-debug] DELETE /api/reminders/:id        --> todo-app/backend/internal/controller.(*ReminderController).Delete-fm (5 handlers)
+[GIN-debug] [WARNING] You trusted all proxies, this is NOT safe. We recommend you to set a value.
+Please check https://pkg.go.dev/github.com/gin-gonic/gin#readme-don-t-trust-all-proxies for details.
+[GIN-debug] Listening and serving HTTP on :8080

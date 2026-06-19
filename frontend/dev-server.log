@@ -1,0 +1,22 @@
+
+> todo-app-frontend@1.0.0 start
+> webpack serve --mode development --host 0.0.0.0 --port 3000
+
+asset [1m[32mbundle.5d4aeb01f591c05af7bc.js[39m[22m 1.99 MiB [1m[32m[emitted][39m[22m [1m[32m[immutable][39m[22m (name: main)
+asset [1m[32mindex.html[39m[22m 284 bytes [1m[32m[emitted][39m[22m
+runtime modules 28.5 KiB 16 modules
+orphan modules 704 bytes [1m[33m[orphan][39m[22m 1 module
+modules by path [1m./node_modules/[39m[22m 1.69 MiB 85 modules
+modules by path [1m./src/[39m[22m 50.4 KiB
+  modules by path [1m./src/components/*.jsx[39m[22m 17.2 KiB 6 modules
+  modules by path [1m./src/pages/*.jsx[39m[22m 17.3 KiB
+    [1m./src/pages/Login.jsx[39m[22m 2.44 KiB [1m[33m[built][39m[22m [1m[33m[code generated][39m[22m
+    + 3 modules
+  modules by path [1m./src/styles/*.css[39m[22m 10.2 KiB
+    [1m./src/styles/global.css[39m[22m 2.27 KiB [1m[33m[built][39m[22m [1m[33m[code generated][39m[22m
+    + 3 modules
+  modules by path [1m./src/api/*.js[39m[22m 1.83 KiB
+    [1m./src/api/authApi.js[39m[22m 505 bytes [1m[33m[built][39m[22m [1m[33m[code generated][39m[22m
+    + 3 modules
+  + 4 modules
+webpack 5.107.2 compiled [1m[32msuccessfully[39m[22m in 5912 ms

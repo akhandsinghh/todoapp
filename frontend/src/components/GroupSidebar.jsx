@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 
 const colors = ['#4f46e5', '#059669', '#dc2626', '#d97706', '#0891b2'];
 
-export default function GroupSidebar({ groups, activeGroup, onSelect, onCreate, onShare }) {
+export default function GroupSidebar({ groups, activeGroup, onSelect, onCreate, onShare, onDelete }) {
   const [name, setName] = useState('');
   const [color, setColor] = useState(colors[0]);
   const [shareEmailByGroup, setShareEmailByGroup] = useState({});
@@ -47,19 +47,31 @@ export default function GroupSidebar({ groups, activeGroup, onSelect, onCreate, 
             <em>{g.role === 'creator' ? 'creator' : 'shared'}</em>
           </button>
           {g.role === 'creator' && (
-            <form className="share-form" onSubmit={(e) => share(e, g.id)}>
-              <input
-                type="email"
-                placeholder="Share by email"
-                value={shareEmailByGroup[g.id] || ''}
-                onChange={(e) =>
-                  setShareEmailByGroup((prev) => ({ ...prev, [g.id]: e.target.value }))
-                }
-              />
-              <button type="submit" disabled={!(shareEmailByGroup[g.id] || '').trim()}>
-                Share
+            <>
+              <form className="share-form" onSubmit={(e) => share(e, g.id)}>
+                <input
+                  type="email"
+                  placeholder="Share by email"
+                  value={shareEmailByGroup[g.id] || ''}
+                  onChange={(e) =>
+                    setShareEmailByGroup((prev) => ({ ...prev, [g.id]: e.target.value }))
+                  }
+                />
+                <button type="submit" disabled={!(shareEmailByGroup[g.id] || '').trim()}>
+                  Share
+                </button>
+              </form>
+              <button
+                className="delete-group-btn"
+                onClick={() => {
+                  if (window.confirm(`Delete group "${g.name}"? This action cannot be undone.`)) {
+                    onDelete(g.id);
+                  }
+                }}
+              >
+                Delete
               </button>
-            </form>
+            </>
           )}
         </div>
       ))}

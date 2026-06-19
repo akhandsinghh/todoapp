@@ -108,6 +108,14 @@ export default function Dashboard() {
           onShare={(id, payload) =>
             groupApi.shareGroup(id, payload).then(loadGroups).catch(handleError)
           }
+          onDelete={(id) =>
+            groupApi.deleteGroup(id).then(() => {
+              if (activeGroup === id) {
+                setActiveGroup(null);
+              }
+              loadGroups();
+            }).catch(handleError)
+          }
         />
         <main className="workspace">
           <section className="toolbar">
