@@ -2,10 +2,12 @@ import React, { useState } from 'react';
 
 const colors = ['#4f46e5', '#059669', '#dc2626', '#d97706', '#0891b2'];
 
-export default function GroupSidebar({ groups, activeGroup, onSelect, onCreate, onShare, onDelete }) {
+export default function GroupSidebar({ groups, activeGroup, onSelect, onCreate, onShare, onDelete, onUpdate }) {
   const [name, setName] = useState('');
   const [color, setColor] = useState(colors[0]);
   const [shareEmailByGroup, setShareEmailByGroup] = useState({});
+  const [editingGroupId, setEditingGroupId] = useState(null);
+  const [editGroupForm, setEditGroupForm] = useState({ name: '', color: colors[0] });
 
   const submit = (e) => {
     e.preventDefault();
@@ -20,6 +22,22 @@ export default function GroupSidebar({ groups, activeGroup, onSelect, onCreate, 
     if (!email) return;
     onShare(groupId, { email });
     setShareEmailByGroup((prev) => ({ ...prev, [groupId]: '' }));
+  };
+
+  const startEdit = (group) => {
+    setEditingGroupId(group.id);
+    setEditGroupForm({ name: group.name, color: group.color || colors[0] });
+  };
+
+  const cancelEdit = () => {
+    setEditingGroupId(null);
+  };
+
+  const submitEdit = (e, groupId) => {
+    e.preventDefault();
+    if (!editGroupForm.name.trim()) return;
+    onUpdate(groupId, { name: editGroupForm.name.trim(), color: editGroupForm.color });
+    setEditingGroupId(null);
   };
 
   return (
@@ -61,16 +79,51 @@ export default function GroupSidebar({ groups, activeGroup, onSelect, onCreate, 
                   Share
                 </button>
               </form>
-              <button
-                className="delete-group-btn"
-                onClick={() => {
-                  if (window.confirm(`Delete group "${g.name}"? This action cannot be undone.`)) {
-                    onDelete(g.id);
-                  }
-                }}
-              >
-                Delete
-              </button>
+              <div className="group-actions">
+                <button type="button" className="edit-group-btn" onClick={() => startEdit(g)}>
+                  Edit
+                </button>
+                <button
+                  type="button"
+                  className="delete-group-btn"
+                  onClick={() => {
+                    if (window.confirm(`Delete group "${g.name}"? This action cannot be undone.`)) {
+                      onDelete(g.id);
+                    }
+                  }}
+                >
+                  Delete
+                </button>
+              </div>
+              {editingGroupId === g.id && (
+                <form className="group-edit-form" onSubmit={(e) => submitEdit(e, g.id)}>
+                  <input
+                    value={editGroupForm.name}
+                    onChange={(e) => setEditGroupForm((prev) => ({ ...prev, name: e.target.value }))}
+                    placeholder="Group name"
+                  />
+                  <div className="swatches">
+                    {colors.map((c) => (
+                      <button
+                        key={c}
+                        type="button"
+                        className={editGroupForm.color === c ? 'selected' : ''}
+                        style={{ background: c }}
+                        onClick={() => setEditGroupForm((prev) => ({ ...prev, color: c }))}
+                        aria-label={c}
+                      />
+                    ))}
+                  </div>
+                  <div className="group-edit-actions">
+                    <button type="submit" disabled={!editGroupForm.name.trim()}>
+                      Save
+                    </button>
+                    <button type="button" className="secondary" onClick={cancelEdit}>
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              )}
             </>
           )}
         </div>

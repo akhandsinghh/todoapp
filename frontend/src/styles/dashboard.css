@@ -13,9 +13,16 @@
 .group-form { margin-top: 12px; display: grid; gap: 10px; }
 .share-form { display: grid; grid-template-columns: 1fr 70px; gap: 6px; }
 .share-form input { min-width: 0; }
-.delete-group-btn { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; padding: 6px 12px; border-radius: 4px; font-weight: 600; font-size: 13px; cursor: pointer; transition: all 0.2s ease; }
+.group-actions { display: flex; gap: 8px; margin-top: 6px; }
+.edit-group-btn, .delete-group-btn { padding: 6px 12px; border-radius: 4px; font-weight: 600; font-size: 13px; cursor: pointer; border: 1px solid transparent; }
+.edit-group-btn { background: #dbeafe; color: #1e40af; border-color: #93c5fd; }
+.edit-group-btn:hover { background: #bfdbfe; }
+.delete-group-btn { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
 .delete-group-btn:hover { background: #fca5a5; border-color: #f87171; }
-.delete-group-btn:active { background: #f87171; }
+.group-edit-form { display: grid; gap: 10px; margin-top: 10px; }
+.group-edit-actions { display: flex; gap: 10px; }
+.group-edit-actions .secondary { background: #e5e7eb; color: #111827; border-color: #d1d5db; }
+.group-edit-actions button { padding: 6px 12px; border-radius: 4px; font-weight: 600; font-size: 13px; cursor: pointer; }
 .swatches { display: flex; gap: 8px; }
 .swatches button { width: 26px; height: 26px; padding: 0; border: 2px solid transparent; }
 .swatches button.selected { border-color: #111827; }
@@ -43,4 +50,6 @@
 .priority.medium { background: #fef3c7; color: #92400e; }
 .priority.low { background: #dcfce7; color: #166534; }
 .reminder-row { display: grid; grid-template-columns: 220px 90px 90px; gap: 10px; justify-content: end; }
+.edit-btn { background: #bfdbfe !important; color: #1e40af !important; }
+.edit-btn:hover { background: #93c5fd !important; }
 @media (max-width: 920px) { .dashboard { grid-template-columns: 1fr; } .sidebar { border-right: 0; border-bottom: 1px solid #e5e7eb; } .task-form { grid-template-columns: 1fr; } .reminder-row { grid-template-columns: 1fr; justify-content: stretch; } .toolbar { align-items: stretch; flex-direction: column; } .toolbar select { width: 100%; } .pagination-toolbar { align-items: stretch; flex-direction: column; } .pagination-toolbar select { width: 100%; } .page-controls { margin-left: 0; justify-content: space-between; } }

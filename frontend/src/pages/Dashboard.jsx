@@ -116,6 +116,9 @@ export default function Dashboard() {
               loadGroups();
             }).catch(handleError)
           }
+          onUpdate={(id, payload) =>
+            groupApi.updateGroup(id, payload).then(loadGroups).catch(handleError)
+          }
         />
         <main className="workspace">
           <section className="toolbar">

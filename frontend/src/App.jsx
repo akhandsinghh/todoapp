@@ -6,7 +6,8 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import Dashboard from './pages/Dashboard';
 import ForgotPassword from './pages/ForgotPassword'; 
-import ChangePassword from './components/ChangePassword'; // <-- NEW IMPORT
+import ChangePassword from './components/ChangePassword'; 
+
 import './styles/global.css';
 import './styles/dashboard.css';
 
