@@ -30,7 +30,7 @@ func New(c Controllers, cfg Config) *gin.Engine {
 	api.POST("/auth/login", c.Auth.Login)
 	api.POST("/auth/forgot-password", c.Auth.ForgotPassword)
 
-	authenticated := api.Group("/auth")
+	authenticated := api.Group("")
 	authenticated.Use(middleware.Auth(cfg.JWTSecret))
 	authenticated.GET("/auth/me", c.Auth.Me)
 	authenticated.POST("/auth/change-password", c.Auth.ChangePassword)
