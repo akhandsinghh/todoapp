@@ -1,6 +1,7 @@
 package controller
 
 import (
+	apperr "todo-app/backend/internal/errors"
 	"todo-app/backend/internal/middleware"
 	"todo-app/backend/internal/model"
 	"todo-app/backend/internal/service"
@@ -17,23 +18,23 @@ func NewReminderController(s *service.ReminderService) *ReminderController {
 func (c *ReminderController) List(ctx *gin.Context) {
 	res, err := c.service.List(ctx.Request.Context(), middleware.UserID(ctx))
 	if err != nil {
-		util.Error(ctx, 500, err.Error())
+		util.HandleError(ctx, err)
 		return
 	}
-	util.JSON(ctx, 200, res)
+	util.Success(ctx, 200, "reminders fetched successfully", res)
 }
 func (c *ReminderController) Create(ctx *gin.Context) {
 	var req model.ReminderRequest
 	if err := util.Decode(ctx, &req); err != nil {
-		util.Error(ctx, 400, "invalid json")
+		util.HandleError(ctx, apperr.BadRequest("invalid json"))
 		return
 	}
 	res, err := c.service.Create(ctx.Request.Context(), middleware.UserID(ctx), req)
 	if err != nil {
-		util.Error(ctx, 400, err.Error())
+		util.HandleError(ctx, err)
 		return
 	}
-	util.JSON(ctx, 201, res)
+	util.Success(ctx, 201, "reminder created successfully", res)
 }
 func (c *ReminderController) Delete(ctx *gin.Context) {
 	id, ok := pathID(ctx)
@@ -41,8 +42,8 @@ func (c *ReminderController) Delete(ctx *gin.Context) {
 		return
 	}
 	if err := c.service.Delete(ctx.Request.Context(), middleware.UserID(ctx), id); err != nil {
-		util.Error(ctx, 400, err.Error())
+		util.HandleError(ctx, err)
 		return
 	}
-	util.JSON(ctx, 200, model.MessageResponse{Message: "reminder deleted"})
+	util.Success(ctx, 200, "reminder deleted", model.MessageResponse{Message: "reminder deleted"})
 }

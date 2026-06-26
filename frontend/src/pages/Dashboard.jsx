@@ -18,7 +18,9 @@ export default function Dashboard() {
   const [query, setQuery] = useState({ pageSize: 10, sortBy: 'due_at', sortOrder: 'asc' });
   const [controls, setControls] = useState(query);
 
-  const loadGroups = () => groupApi.listGroups().then(setGroups);
+  const loadGroups = () =>
+    groupApi.listGroups().then((items) => setGroups(Array.isArray(items) ? items : []));
+
   const loadTasks = () =>
     taskApi
       .listTasks({
@@ -31,9 +33,9 @@ export default function Dashboard() {
         sort_order: query.sortOrder,
       })
       .then((data) => {
-        const items = Array.isArray(data) ? data : data.items || [];
+        const items = Array.isArray(data?.items) ? data.items : [];
         setTasks(items);
-        setTotalTasks(Array.isArray(data) ? items.length : data.total || 0);
+        setTotalTasks(Number.isFinite(data?.total) ? data.total : items.length);
       });
 
   const taskMatchesFilters = (task) => {
@@ -88,7 +90,8 @@ export default function Dashboard() {
   };
 
   function handleError(err) {
-    setError(err.response?.data?.error || err.message || 'Something went wrong');
+    const message = err.response?.data?.message || err.response?.data?.error || err.message || 'Something went wrong';
+    setError(message);
   }
 
   return (

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"time"
 	"todo-app/backend/internal/db/sqlc"
+	apperr "todo-app/backend/internal/errors"
 	"todo-app/backend/internal/model"
 	"todo-app/backend/internal/repository"
 	"todo-app/backend/internal/util"
@@ -73,27 +74,30 @@ func (s *TaskService) ensureGroupAccess(ctx context.Context, userID int64, group
 		return nil
 	}
 	if _, err := s.repo.GetAccessibleGroup(ctx, sqlc.GetAccessibleGroupByIDParams{ID: *groupID, UserID: userID}); err != nil {
-		return errors.New("group is not accessible")
+		if errors.Is(err, sql.ErrNoRows) {
+			return apperr.Forbidden("group is not accessible")
+		}
+		return apperr.Forbidden("group is not accessible")
 	}
 	return nil
 }
 
 func (s *TaskService) Create(ctx context.Context, userID int64, req model.TaskRequest) (model.TaskDTO, error) {
 	if !util.Required(req.Title) {
-		return model.TaskDTO{}, errors.New("title is required")
+		return model.TaskDTO{}, apperr.BadRequest("title is required")
 	}
 	if req.Priority == "" {
 		req.Priority = "medium"
 	}
 	if !util.ValidPriority(req.Priority) {
-		return model.TaskDTO{}, errors.New("invalid priority")
+		return model.TaskDTO{}, apperr.BadRequest("invalid priority")
 	}
 	if err := s.ensureGroupAccess(ctx, userID, req.GroupID); err != nil {
 		return model.TaskDTO{}, err
 	}
 	due, err := parseTime(req.DueAt)
 	if err != nil {
-		return model.TaskDTO{}, errors.New("due_at must be RFC3339")
+		return model.TaskDTO{}, apperr.BadRequest("due_at must be RFC3339")
 	}
 	id, err := s.repo.Create(ctx, sqlc.CreateTaskParams{
 		UserID:      userID,
@@ -104,7 +108,7 @@ func (s *TaskService) Create(ctx context.Context, userID int64, req model.TaskRe
 		DueAt:       due,
 	})
 	if err != nil {
-		return model.TaskDTO{}, err
+		return model.TaskDTO{}, apperr.Internal("failed to create task")
 	}
 	t, err := s.repo.Get(ctx, sqlc.GetTaskByIDParams{ID: id, UserID: userID})
 	if err != nil {
@@ -144,7 +148,7 @@ func (s *TaskService) List(ctx context.Context, userID int64, status string, gro
 	}
 	total, err := s.repo.Count(ctx, countParams)
 	if err != nil {
-		return model.TaskListResponse{}, err
+		return model.TaskListResponse{}, apperr.Internal("failed to count tasks")
 	}
 	ts, err := s.repo.List(ctx, sqlc.ListTasksByUserParams{
 		UserID: userID,
@@ -173,7 +177,7 @@ func (s *TaskService) List(ctx context.Context, userID int64, status string, gro
 		Offset:  offset,
 	})
 	if err != nil {
-		return model.TaskListResponse{}, err
+		return model.TaskListResponse{}, apperr.Internal("failed to fetch tasks")
 	}
 
 	out := make([]model.TaskDTO, 0, len(ts))
@@ -186,7 +190,10 @@ func (s *TaskService) List(ctx context.Context, userID int64, status string, gro
 func (s *TaskService) Update(ctx context.Context, userID, id int64, req model.TaskRequest) (model.TaskDTO, error) {
 	cur, err := s.repo.Get(ctx, sqlc.GetTaskByIDParams{ID: id, UserID: userID})
 	if err != nil {
-		return model.TaskDTO{}, err
+		if errors.Is(err, sql.ErrNoRows) {
+			return model.TaskDTO{}, apperr.NotFound("task not found")
+		}
+		return model.TaskDTO{}, apperr.Internal("failed to fetch task")
 	}
 	if req.Title == "" {
 		req.Title = cur.Title
@@ -198,17 +205,17 @@ func (s *TaskService) Update(ctx context.Context, userID, id int64, req model.Ta
 		req.Priority = string(cur.Priority)
 	}
 	if !util.ValidStatus(req.Status) {
-		return model.TaskDTO{}, errors.New("invalid status")
+		return model.TaskDTO{}, apperr.BadRequest("invalid status")
 	}
 	if !util.ValidPriority(req.Priority) {
-		return model.TaskDTO{}, errors.New("invalid priority")
+		return model.TaskDTO{}, apperr.BadRequest("invalid priority")
 	}
 	if err := s.ensureGroupAccess(ctx, userID, req.GroupID); err != nil {
 		return model.TaskDTO{}, err
 	}
 	due, err := parseTime(req.DueAt)
 	if err != nil {
-		return model.TaskDTO{}, errors.New("due_at must be RFC3339")
+		return model.TaskDTO{}, apperr.BadRequest("due_at must be RFC3339")
 	}
 	if req.DueAt == "" {
 		due = cur.DueAt
@@ -235,15 +242,19 @@ func (s *TaskService) Update(ctx context.Context, userID, id int64, req model.Ta
 		DueAt:       due,
 		CompletedAt: done,
 	}); err != nil {
-		return model.TaskDTO{}, err
+		return model.TaskDTO{}, apperr.Internal("failed to update task")
 	}
 	t, err := s.repo.Get(ctx, sqlc.GetTaskByIDParams{ID: id, UserID: userID})
 	if err != nil {
-		return model.TaskDTO{}, err
+		return model.TaskDTO{}, apperr.Internal("failed to fetch updated task")
 	}
 	return taskDTO(t), nil
 }
 
 func (s *TaskService) Delete(ctx context.Context, userID, id int64) error {
-	return s.repo.Delete(ctx, sqlc.DeleteTaskParams{ID: id, UserID: userID})
+	err := s.repo.Delete(ctx, sqlc.DeleteTaskParams{ID: id, UserID: userID})
+	if err != nil {
+		return apperr.Internal("failed to delete task")
+	}
+	return nil
 }

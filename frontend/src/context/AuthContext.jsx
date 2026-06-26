@@ -16,7 +16,10 @@ export function AuthProvider({ children }) {
     }
     authApi
       .me()
-      .then(setUser)
+      .then((payload) => {
+        const normalizedUser = payload?.user || payload;
+        setUser(normalizedUser);
+      })
       .catch(() => localStorage.removeItem('token'))
       .finally(() => setLoading(false));
   }, []);
@@ -27,14 +30,18 @@ export function AuthProvider({ children }) {
       loading,
       login: async (payload) => {
         const res = await authApi.login(payload);
-        localStorage.setItem('token', res.token);
-        setUser(res.user);
+        const token = res?.token || res?.model?.token;
+        const normalizedUser = res?.user || res?.model?.user || res?.model;
+        if (token) localStorage.setItem('token', token);
+        setUser(normalizedUser || null);
         return res;
       },
       register: async (payload) => {
         const res = await authApi.register(payload);
-        localStorage.setItem('token', res.token);
-        setUser(res.user);
+        const token = res?.token || res?.model?.token;
+        const normalizedUser = res?.user || res?.model?.user || res?.model;
+        if (token) localStorage.setItem('token', token);
+        setUser(normalizedUser || null);
         return res;
       },
       logout: () => {

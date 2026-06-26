@@ -15,7 +15,7 @@ export default function Login() {
       await login(form);
       navigate('/');
     } catch (err) {
-      setError(err.response?.data?.error || 'Login failed');
+      setError(err.response?.data?.message || err.response?.data?.error || 'Login failed');
     }
   };
 
