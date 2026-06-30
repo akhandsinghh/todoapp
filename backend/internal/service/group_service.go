@@ -22,7 +22,6 @@ type GroupRepository interface {
 	Delete(ctx context.Context, arg sqlc.DeleteGroupParams) error
 }
 
-// 2. Depend on the interface rather than the concrete repository
 type GroupService struct {
 	repo GroupRepository
 }

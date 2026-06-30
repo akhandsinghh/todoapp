@@ -96,9 +96,7 @@ func (s *TaskService) ensureGroupAccess(ctx context.Context, userID int64, group
 }
 
 func (s *TaskService) Create(ctx context.Context, userID int64, req dto.TaskRequest) (model.TaskDTO, error) {
-	if req.Priority == "" {
-		req.Priority = "medium"
-	}
+	req.Priority = defaultTaskPriority(req.Priority)
 	if !util.ValidPriority(req.Priority) {
 		return model.TaskDTO{}, apperr.BadRequest("invalid priority")
 	}
@@ -163,7 +161,6 @@ func (s *TaskService) List(ctx context.Context, userID int64, status string, gro
 	ts, err := s.repo.List(ctx, sqlc.ListTasksByUserParams{
 		UserID: userID,
 
-		// Map the raw strings to the dynamically generated sqlc interface fields
 		Column3: status,
 		Status:  sqlc.TasksStatus(status),
 
@@ -205,15 +202,10 @@ func (s *TaskService) Update(ctx context.Context, userID, id int64, req dto.Task
 		}
 		return model.TaskDTO{}, apperr.Internal("failed to fetch task")
 	}
-	if req.Title == "" {
-		req.Title = cur.Title
-	}
-	if req.Status == "" {
-		req.Status = string(cur.Status)
-	}
-	if req.Priority == "" {
-		req.Priority = string(cur.Priority)
-	}
+
+	req.Title = chooseString(req.Title, cur.Title)
+	req.Status = chooseString(req.Status, string(cur.Status))
+	req.Priority = chooseString(req.Priority, string(cur.Priority))
 	if err := s.ensureGroupAccess(ctx, userID, req.GroupID); err != nil {
 		return model.TaskDTO{}, err
 	}
@@ -224,6 +216,7 @@ func (s *TaskService) Update(ctx context.Context, userID, id int64, req dto.Task
 	if req.DueAt == "" {
 		due = cur.DueAt
 	}
+
 	done := cur.CompletedAt
 	if req.Status == "completed" && !done.Valid {
 		done = sql.NullTime{Time: time.Now(), Valid: true}
@@ -231,10 +224,8 @@ func (s *TaskService) Update(ctx context.Context, userID, id int64, req dto.Task
 	if req.Status == "pending" {
 		done = sql.NullTime{}
 	}
-	desc := sql.NullString{String: req.Description, Valid: req.Description != ""}
-	if req.Description == "" {
-		desc = cur.Description
-	}
+
+	desc := chooseNullString(req.Description, cur.Description)
 	if err := s.repo.Update(ctx, sqlc.UpdateTaskParams{
 		ID:          id,
 		UserID:      userID,
@@ -261,4 +252,25 @@ func (s *TaskService) Delete(ctx context.Context, userID, id int64) error {
 		return apperr.Internal("failed to delete task")
 	}
 	return nil
+}
+
+func defaultTaskPriority(priority string) string {
+	if priority == "" {
+		return "medium"
+	}
+	return priority
+}
+
+func chooseString(value, fallback string) string {
+	if value == "" {
+		return fallback
+	}
+	return value
+}
+
+func chooseNullString(value string, fallback sql.NullString) sql.NullString {
+	if value == "" {
+		return fallback
+	}
+	return sql.NullString{String: value, Valid: true}
 }

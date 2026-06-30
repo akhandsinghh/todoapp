@@ -19,7 +19,6 @@ type DatabaseConnector interface {
 	Migrate(db *sql.DB, dir string) error
 }
 
-// SQLDatabaseConnector creates and configures a MySQL connection.
 type SQLDatabaseConnector struct {
 	cfg config.DatabaseConfig
 }
