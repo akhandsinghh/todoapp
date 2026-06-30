@@ -4,61 +4,64 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+
+	"todo-app/backend/internal/controller/dto"
+	"todo-app/backend/internal/db/sqlc"
 	apperr "todo-app/backend/internal/errors"
 	"todo-app/backend/internal/model"
-	"todo-app/backend/internal/repository"
 	"todo-app/backend/internal/util"
 )
 
+type UserRepository interface {
+	ByEmail(ctx context.Context, email string) (sqlc.User, error)
+	ByID(ctx context.Context, id int64) (sqlc.User, error)
+	Create(ctx context.Context, name, email, hash string) (int64, error)
+	UpdatePassword(ctx context.Context, id int64, hash string) error
+}
+
 type AuthService struct {
-	users  *repository.UserRepository
+	users  UserRepository
 	secret string
 }
 
-func NewAuthService(users *repository.UserRepository, secret string) *AuthService {
+func NewAuthService(users UserRepository, secret string) *AuthService {
 	return &AuthService{users: users, secret: secret}
 }
 
-func (s *AuthService) Register(ctx context.Context, req model.RegisterRequest) (model.AuthResponse, error) {
-	if !util.Required(req.Name, req.Email, req.Password) {
-		return model.AuthResponse{}, apperr.BadRequest("name, email and password are required")
-	}
+func (s *AuthService) Register(ctx context.Context, req dto.RegisterRequest) (dto.AuthResponse, error) {
 	if _, err := s.users.ByEmail(ctx, req.Email); err == nil {
-		return model.AuthResponse{}, apperr.Conflict("email already registered")
+		return dto.AuthResponse{}, apperr.Conflict("email already registered")
 	} else if !errors.Is(err, sql.ErrNoRows) {
-		return model.AuthResponse{}, err
+		return dto.AuthResponse{}, err
 	}
 	hash, err := util.HashPassword(req.Password)
 	if err != nil {
-		return model.AuthResponse{}, err
+		return dto.AuthResponse{}, err
 	}
 	id, err := s.users.Create(ctx, req.Name, req.Email, hash)
 	if err != nil {
-		return model.AuthResponse{}, apperr.Internal("failed to create user")
+		return dto.AuthResponse{}, apperr.Internal("failed to create user")
 	}
 	token, err := util.SignToken(id, req.Email, s.secret)
 	if err != nil {
-		return model.AuthResponse{}, err
+		return dto.AuthResponse{}, err
 	}
-	return model.AuthResponse{Token: token, User: model.UserResponse{ID: id, Name: req.Name, Email: req.Email}}, nil
+	return dto.AuthResponse{Token: token, User: dto.ConvertUserDomainToResponse(model.UserResponse{ID: id, Name: req.Name, Email: req.Email})}, nil
 }
 
-func (s *AuthService) Login(ctx context.Context, req model.LoginRequest) (model.AuthResponse, error) {
-	if !util.Required(req.Email, req.Password) {
-		return model.AuthResponse{}, apperr.BadRequest("email and password are required")
-	}
+func (s *AuthService) Login(ctx context.Context, req dto.LoginRequest) (dto.AuthResponse, error) {
 	u, err := s.users.ByEmail(ctx, req.Email)
 	if err != nil {
-		return model.AuthResponse{}, apperr.Unauthorized("invalid credentials")
+		return dto.AuthResponse{}, apperr.Unauthorized("invalid credentials")
 	}
 	if !util.CheckPassword(req.Password, u.PasswordHash) {
-		return model.AuthResponse{}, apperr.Unauthorized("invalid credentials")
+		return dto.AuthResponse{}, apperr.Unauthorized("invalid credentials")
 	}
 	token, err := util.SignToken(u.ID, u.Email, s.secret)
 	if err != nil {
-		return model.AuthResponse{}, err
+		return dto.AuthResponse{}, err
 	}
-	return model.AuthResponse{Token: token, User: model.UserResponse{ID: u.ID, Name: u.Name, Email: u.Email}}, nil
+	return dto.AuthResponse{Token: token, User: dto.ConvertUserDomainToResponse(model.UserResponse{ID: u.ID, Name: u.Name, Email: u.Email})}, nil
 }
 
 func (s *AuthService) Me(ctx context.Context, userID int64) (model.UserResponse, error) {
@@ -72,10 +75,7 @@ func (s *AuthService) Me(ctx context.Context, userID int64) (model.UserResponse,
 	return model.UserResponse{ID: u.ID, Name: u.Name, Email: u.Email}, nil
 }
 
-func (s *AuthService) ChangePassword(ctx context.Context, userID int64, req model.ChangePasswordRequest) error {
-	if !util.Required(req.OldPassword, req.NewPassword, req.ConfirmPassword) {
-		return apperr.BadRequest("old password, new password and confirm password are required")
-	}
+func (s *AuthService) ChangePassword(ctx context.Context, userID int64, req dto.ChangePasswordRequest) error {
 	if req.NewPassword != req.ConfirmPassword {
 		return apperr.BadRequest("new passwords do not match")
 	}
@@ -100,10 +100,7 @@ func (s *AuthService) ChangePassword(ctx context.Context, userID int64, req mode
 	return nil
 }
 
-func (s *AuthService) ForgotPassword(ctx context.Context, req model.ForgotPasswordRequest) error {
-	if !util.Required(req.Email, req.NewPassword, req.ConfirmPassword) {
-		return apperr.BadRequest("email, new password and confirm password are required")
-	}
+func (s *AuthService) ForgotPassword(ctx context.Context, req dto.ForgotPasswordRequest) error {
 	if req.NewPassword != req.ConfirmPassword {
 		return apperr.BadRequest("passwords do not match")
 	}

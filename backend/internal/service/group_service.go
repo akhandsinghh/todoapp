@@ -5,20 +5,34 @@ import (
 	"database/sql"
 	"errors"
 	"strings"
+	"todo-app/backend/internal/controller/dto"
 	"todo-app/backend/internal/db/sqlc"
 	apperr "todo-app/backend/internal/errors"
 	"todo-app/backend/internal/model"
-	"todo-app/backend/internal/repository"
-	"todo-app/backend/internal/util"
 )
 
-type GroupService struct {
-	repo *repository.GroupRepository
+// 1. Define the GroupRepository interface for mockery
+type GroupRepository interface {
+	Create(ctx context.Context, arg sqlc.CreateGroupParams) (int64, error)
+	Get(ctx context.Context, arg sqlc.GetGroupByIDParams) (sqlc.TaskGroup, error)
+	List(ctx context.Context, userID int64) ([]sqlc.AccessibleGroup, error)
+	UserByEmail(ctx context.Context, email string) (sqlc.User, error)
+	Share(ctx context.Context, arg sqlc.CreateGroupShareParams) error
+	Update(ctx context.Context, arg sqlc.UpdateGroupParams) error
+	Delete(ctx context.Context, arg sqlc.DeleteGroupParams) error
 }
 
-func NewGroupService(repo *repository.GroupRepository) *GroupService {
+// 2. Depend on the interface rather than the concrete repository
+type GroupService struct {
+	repo GroupRepository
+}
+
+// 3. Update the constructor
+func NewGroupService(repo GroupRepository) *GroupService {
 	return &GroupService{repo: repo}
 }
+
+const timeLayout = "2006-01-02T15:04:05Z07:00"
 
 func groupDTO(g sqlc.TaskGroup) model.GroupDTO {
 	return model.GroupDTO{
@@ -44,12 +58,7 @@ func accessibleGroupDTO(g sqlc.AccessibleGroup) model.GroupDTO {
 	}
 }
 
-const timeLayout = "2006-01-02T15:04:05Z07:00"
-
-func (s *GroupService) Create(ctx context.Context, userID int64, req model.GroupRequest) (model.GroupDTO, error) {
-	if !util.Required(req.Name) {
-		return model.GroupDTO{}, apperr.BadRequest("group name is required")
-	}
+func (s *GroupService) Create(ctx context.Context, userID int64, req dto.GroupRequest) (model.GroupDTO, error) {
 	if req.Color == "" {
 		req.Color = "#4f46e5"
 	}
@@ -76,11 +85,8 @@ func (s *GroupService) List(ctx context.Context, userID int64) ([]model.GroupDTO
 	return out, nil
 }
 
-func (s *GroupService) Share(ctx context.Context, userID, id int64, req model.ShareGroupRequest) error {
+func (s *GroupService) Share(ctx context.Context, userID, id int64, req dto.ShareGroupRequest) error {
 	email := strings.TrimSpace(req.Email)
-	if email == "" {
-		return apperr.BadRequest("email is required")
-	}
 	if _, err := s.repo.Get(ctx, sqlc.GetGroupByIDParams{ID: id, UserID: userID}); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return apperr.Forbidden("only the creator can share this group")
@@ -104,7 +110,7 @@ func (s *GroupService) Share(ctx context.Context, userID, id int64, req model.Sh
 	return nil
 }
 
-func (s *GroupService) Update(ctx context.Context, userID, id int64, req model.GroupRequest) error {
+func (s *GroupService) Update(ctx context.Context, userID, id int64, req dto.GroupUpdateRequest) error {
 	if req.Color == "" {
 		req.Color = "#4f46e5"
 	}

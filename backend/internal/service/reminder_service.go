@@ -5,18 +5,27 @@ import (
 	"database/sql"
 	"errors"
 	"time"
+
+	"todo-app/backend/internal/controller/dto"
 	"todo-app/backend/internal/db/sqlc"
 	apperr "todo-app/backend/internal/errors"
 	"todo-app/backend/internal/model"
-	"todo-app/backend/internal/repository"
 )
 
-type ReminderService struct {
-	repo  *repository.ReminderRepository
-	tasks *repository.TaskRepository
+type ReminderRepository interface {
+	Create(ctx context.Context, arg sqlc.CreateReminderParams) (int64, error)
+	List(ctx context.Context, userID int64) ([]sqlc.Reminder, error)
+	Delete(ctx context.Context, arg sqlc.DeleteReminderParams) error
+	Due(ctx context.Context, arg sqlc.ListDueRemindersParams) ([]sqlc.Reminder, error)
+	MarkSent(ctx context.Context, id int64) error
 }
 
-func NewReminderService(repo *repository.ReminderRepository, tasks *repository.TaskRepository) *ReminderService {
+type ReminderService struct {
+	repo  ReminderRepository
+	tasks TaskRepository
+}
+
+func NewReminderService(repo ReminderRepository, tasks TaskRepository) *ReminderService {
 	return &ReminderService{repo: repo, tasks: tasks}
 }
 
@@ -32,10 +41,7 @@ func reminderDTO(r sqlc.Reminder) model.ReminderDTO {
 	}
 }
 
-func (s *ReminderService) Create(ctx context.Context, userID int64, req model.ReminderRequest) (model.ReminderDTO, error) {
-	if req.TaskID == 0 || req.RemindAt == "" {
-		return model.ReminderDTO{}, apperr.BadRequest("task_id and remind_at are required")
-	}
+func (s *ReminderService) Create(ctx context.Context, userID int64, req dto.ReminderRequest) (model.ReminderDTO, error) {
 	if _, err := s.tasks.Get(ctx, sqlc.GetTaskByIDParams{ID: req.TaskID, UserID: userID}); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return model.ReminderDTO{}, apperr.NotFound("task not found")

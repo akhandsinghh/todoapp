@@ -1,32 +1,44 @@
 package controller
 
 import (
-	apperr "todo-app/backend/internal/errors"
+	"context"
+	"net/http"
+
+	"todo-app/backend/internal/controller/dto"
 	"todo-app/backend/internal/middleware"
 	"todo-app/backend/internal/model"
-	"todo-app/backend/internal/service"
 	"todo-app/backend/internal/util"
 
 	"github.com/gin-gonic/gin"
 )
 
-type ReminderController struct{ service *service.ReminderService }
+type ReminderServiceInterface interface {
+	List(ctx context.Context, userID int64) ([]model.ReminderDTO, error)
+	Create(ctx context.Context, userID int64, req dto.ReminderRequest) (model.ReminderDTO, error)
+	Delete(ctx context.Context, userID, id int64) error
+}
 
-func NewReminderController(s *service.ReminderService) *ReminderController {
+type ReminderController struct {
+	service ReminderServiceInterface
+}
+
+func NewReminderController(s ReminderServiceInterface) *ReminderController {
 	return &ReminderController{service: s}
 }
+
 func (c *ReminderController) List(ctx *gin.Context) {
 	res, err := c.service.List(ctx.Request.Context(), middleware.UserID(ctx))
 	if err != nil {
 		util.HandleError(ctx, err)
 		return
 	}
-	util.Success(ctx, 200, "reminders fetched successfully", res)
+	util.Success(ctx, 200, "reminders fetched successfully", dto.ConvertReminderListDomainToResponse(res))
 }
+
 func (c *ReminderController) Create(ctx *gin.Context) {
-	var req model.ReminderRequest
+	var req dto.ReminderRequest
 	if err := util.Decode(ctx, &req); err != nil {
-		util.HandleError(ctx, apperr.BadRequest("invalid json"))
+		util.Error(ctx, http.StatusBadRequest, err.Error())
 		return
 	}
 	res, err := c.service.Create(ctx.Request.Context(), middleware.UserID(ctx), req)
@@ -34,10 +46,11 @@ func (c *ReminderController) Create(ctx *gin.Context) {
 		util.HandleError(ctx, err)
 		return
 	}
-	util.Success(ctx, 201, "reminder created successfully", res)
+	util.Success(ctx, 201, "reminder created successfully", dto.ConvertReminderDomainToResponse(res))
 }
+
 func (c *ReminderController) Delete(ctx *gin.Context) {
-	id, ok := pathID(ctx)
+	id, ok := util.ParsePathID(ctx)
 	if !ok {
 		return
 	}
@@ -45,5 +58,5 @@ func (c *ReminderController) Delete(ctx *gin.Context) {
 		util.HandleError(ctx, err)
 		return
 	}
-	util.Success(ctx, 200, "reminder deleted", model.MessageResponse{Message: "reminder deleted"})
+	util.Success(ctx, 200, "reminder deleted", dto.MessageResponse{Message: "reminder deleted"})
 }

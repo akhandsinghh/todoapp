@@ -5,18 +5,31 @@ import (
 	"database/sql"
 	"errors"
 	"time"
+
+	"todo-app/backend/internal/controller/dto"
 	"todo-app/backend/internal/db/sqlc"
 	apperr "todo-app/backend/internal/errors"
 	"todo-app/backend/internal/model"
-	"todo-app/backend/internal/repository"
 	"todo-app/backend/internal/util"
 )
 
-type TaskService struct {
-	repo *repository.TaskRepository
+type TaskRepository interface {
+	GetAccessibleGroup(ctx context.Context, arg sqlc.GetAccessibleGroupByIDParams) (sqlc.AccessibleGroup, error)
+	Create(ctx context.Context, arg sqlc.CreateTaskParams) (int64, error)
+	Get(ctx context.Context, arg sqlc.GetTaskByIDParams) (sqlc.Task, error)
+	Count(ctx context.Context, arg sqlc.CountTasksByUserParams) (int64, error)
+	List(ctx context.Context, arg sqlc.ListTasksByUserParams) ([]sqlc.Task, error)
+	Update(ctx context.Context, arg sqlc.UpdateTaskParams) error
+	Delete(ctx context.Context, arg sqlc.DeleteTaskParams) error
 }
 
-func NewTaskService(repo *repository.TaskRepository) *TaskService {
+// 2. Depend on the interface instead of the concrete pointer
+type TaskService struct {
+	repo TaskRepository
+}
+
+// 3. Update the constructor to accept the interface
+func NewTaskService(repo TaskRepository) *TaskService {
 	return &TaskService{repo: repo}
 }
 
@@ -82,10 +95,7 @@ func (s *TaskService) ensureGroupAccess(ctx context.Context, userID int64, group
 	return nil
 }
 
-func (s *TaskService) Create(ctx context.Context, userID int64, req model.TaskRequest) (model.TaskDTO, error) {
-	if !util.Required(req.Title) {
-		return model.TaskDTO{}, apperr.BadRequest("title is required")
-	}
+func (s *TaskService) Create(ctx context.Context, userID int64, req dto.TaskRequest) (model.TaskDTO, error) {
 	if req.Priority == "" {
 		req.Priority = "medium"
 	}
@@ -127,7 +137,7 @@ func normalizeSort(sortBy, sortOrder string) (string, string) {
 	return sortBy, sortOrder
 }
 
-func (s *TaskService) List(ctx context.Context, userID int64, status string, groupID int64, ungrouped bool, limit, offset int32, sortBy, sortOrder string) (model.TaskListResponse, error) {
+func (s *TaskService) List(ctx context.Context, userID int64, status string, groupID int64, ungrouped bool, limit, offset int32, sortBy, sortOrder string) (dto.TaskListResponse, error) {
 	sortBy, sortOrder = normalizeSort(sortBy, sortOrder)
 	var ungroupedFlag int32
 	if ungrouped {
@@ -148,7 +158,7 @@ func (s *TaskService) List(ctx context.Context, userID int64, status string, gro
 	}
 	total, err := s.repo.Count(ctx, countParams)
 	if err != nil {
-		return model.TaskListResponse{}, apperr.Internal("failed to count tasks")
+		return dto.TaskListResponse{}, apperr.Internal("failed to count tasks")
 	}
 	ts, err := s.repo.List(ctx, sqlc.ListTasksByUserParams{
 		UserID: userID,
@@ -177,17 +187,17 @@ func (s *TaskService) List(ctx context.Context, userID int64, status string, gro
 		Offset:  offset,
 	})
 	if err != nil {
-		return model.TaskListResponse{}, apperr.Internal("failed to fetch tasks")
+		return dto.TaskListResponse{}, apperr.Internal("failed to fetch tasks")
 	}
 
 	out := make([]model.TaskDTO, 0, len(ts))
 	for _, t := range ts {
 		out = append(out, taskDTO(t))
 	}
-	return model.TaskListResponse{Items: out, Total: total}, nil
+	return dto.ConvertTaskListDomainToResponse(out, total), nil
 }
 
-func (s *TaskService) Update(ctx context.Context, userID, id int64, req model.TaskRequest) (model.TaskDTO, error) {
+func (s *TaskService) Update(ctx context.Context, userID, id int64, req dto.TaskUpdateRequest) (model.TaskDTO, error) {
 	cur, err := s.repo.Get(ctx, sqlc.GetTaskByIDParams{ID: id, UserID: userID})
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -203,12 +213,6 @@ func (s *TaskService) Update(ctx context.Context, userID, id int64, req model.Ta
 	}
 	if req.Priority == "" {
 		req.Priority = string(cur.Priority)
-	}
-	if !util.ValidStatus(req.Status) {
-		return model.TaskDTO{}, apperr.BadRequest("invalid status")
-	}
-	if !util.ValidPriority(req.Priority) {
-		return model.TaskDTO{}, apperr.BadRequest("invalid priority")
 	}
 	if err := s.ensureGroupAccess(ctx, userID, req.GroupID); err != nil {
 		return model.TaskDTO{}, err
